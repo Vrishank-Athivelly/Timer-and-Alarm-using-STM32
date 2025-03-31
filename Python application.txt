@@ -1,0 +1,92 @@
+import serial
+import time
+from datetime import datetime
+import tkinter as tk
+from tkinter import ttk
+class AlarmClockApp:
+ def _init_(self):
+ # Configure serial connection (adjust COM port)
+
+ self.arduino = serial.Serial('COM5', 9600, timeout=1)
+ time.sleep(2) # Wait for STM32 to reset
+
+ # Create GUI window
+ self.window = tk.Tk()
+ self.window.title("Alarm Clock Controller")
+
+ # Alarm time variables
+ self.alarm_hour = tk.StringVar(value="00")
+ self.alarm_minute = tk.StringVar(value="00")
+ self.alarm_active = tk.BooleanVar(value=False)
+
+ self.setup_gui()
+ self.update_time()
+ self.window.mainloop()
+
+ def setup_gui(self):
+ # Time display
+ ttk.Label(self.window, text="Current Time:").grid(row=0, column=0,
+padx=5, pady=5)
+ self.time_label = ttk.Label(self.window, text="")
+ self.time_label.grid(row=0, column=1, padx=5, pady=5)
+
+ # Alarm setup
+ ttk.Label(self.window, text="Set Alarm:").grid(row=1, column=0, padx=5,
+pady=5)
+
+ # Hour selector
+ hour_frame = ttk.Frame(self.window)
+ hour_frame.grid(row=1, column=1)
+ ttk.Spinbox(hour_frame, from_=0, to=23, width=2, format="%02.0f",
+ textvariable=self.alarm_hour).pack(side=tk.LEFT)
+
+ ttk.Label(hour_frame, text=":").pack(side=tk.LEFT)
+
+ # Minute selector
+ ttk.Spinbox(hour_frame, from_=0, to=59, width=2, format="%02.0f",
+ textvariable=self.alarm_minute).pack(side=tk.LEFT)
+
+ # Alarm toggle
+ ttk.Checkbutton(self.window, text="Alarm Active",
+ variable=self.alarm_active,
+ command=self.update_alarm).grid(row=2, column=0,
+columnspan=2)
+
+ # Stop alarm button
+ ttk.Button(self.window, text="Stop Alarm",
+ command=self.stop_alarm).grid(row=3, column=0, columnspan=2,
+pady=5)
+
+ def update_time(self):
+ # Get current time
+ current_time = datetime.now().strftime('%H:%M:%S')
+ self.time_label.config(text=current_time)
+
+ # Send time to STM32
+ self.arduino.write(f"T{current_time}\n".encode())
+
+ # Schedule next update
+ self.window.after(100, self.update_time)
+
+ def update_alarm(self):
+ # Send alarm time and status to STM32
+ status = "1" if self.alarm_active.get() else "0"
+ alarm_time =
+f"A{self.alarm_hour.get()}:{self.alarm_minute.get()}:{status}"
+ self.arduino.write(f"{alarm_time}\n".encode())
+
+ def stop_alarm(self):
+ # Send alarm stop signal
+ self.alarm_active.set(False)
+ self.update_alarm()
+
+ def _del_(self):
+ if hasattr(self, 'arduino'):
+ self.arduino.close()
+if _name_ == "_main_":
+ try:
+ app = AlarmClockApp()
+ except serial.SerialException as e:
+ print(f"Error with serial connection: {e}")
+ print("Please check if the correct serial port is specified.") 
+

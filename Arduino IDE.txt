@@ -1,0 +1,109 @@
+Arduino IDE:
+#include <Wire.h>
+#include <TM1637Display.h>
+// Define the connections pins
+#define CLK 2 // Change to appropriate pin for your board
+#define DIO 3 // Change to appropriate pin for your board
+#define BUZZER_PIN 9 // Using PWM pin, adjust based on your board's
+pinout
+// Create display object
+TM1637Display display(CLK, DIO);
+// Variables to keep track of time
+int hours = 0;
+int minutes = 0;
+int seconds = 0;
+int lastSecond = -1;
+// Alarm variables
+bool alarmActive = false;
+int alarmHours = 0;
+int alarmMinutes = 0;
+bool isAlarmRinging = false;
+// Buzzer variables
+const int BUZZER_VOLUME = 50;
+const int BUZZ_DURATION = 100;
+const int BUZZ_INTERVAL = 1000;
+unsigned long lastBeepTime = 0;
+bool beepState = false;
+void setup() {
+ // Initialize serial communication (use Serial1 or Serial2 if needed)
+ Serial2.begin(9600); // Adjust serial port as needed
+
+ // Set the brightness level (0-7)
+ display.setBrightness(2);
+
+ // Clear the display
+ display.clear();
+
+ // Setup buzzer pin
+ pinMode(BUZZER_PIN, OUTPUT);
+ analogWrite(BUZZER_PIN, 0); // Start with buzzer off
+}
+void softBeep() {
+ // Very gentle fade in
+ for(int i = 0; i < BUZZER_VOLUME; i++) {
+ analogWrite(BUZZER_PIN, i);
+ delay(2); // Slower fade for gentler sound
+ }
+ delay(BUZZ_DURATION);
+
+ // Very gentle fade out
+ for(int i = BUZZER_VOLUME; i >= 0; i--) {
+ analogWrite(BUZZER_PIN, i);
+ delay(2); // Slower fade for gentler sound
+ }
+ analogWrite(BUZZER_PIN, 0); // Ensure buzzer is off
+}
+void loop() {
+ // Check if data is available from laptop
+ if (Serial2.available()) {
+ String data = Serial2.readStringUntil('\n');
+
+ // Check if it's time data or alarm data
+ if (data.startsWith("T")) { // Time data
+ // Parse time (format: "THH:MM:SS")
+ hours = data.substring(1, 3).toInt();
+ minutes = data.substring(4, 6).toInt();
+ seconds = data.substring(7, 9).toInt();
+ }
+ else if (data.startsWith("A")) { // Alarm data (format: "AHH:MM:1" or
+"AHH:MM:0")
+ // Parse alarm time and status
+ alarmHours = data.substring(1, 3).toInt();
+ alarmMinutes = data.substring(4, 6).toInt();
+ alarmActive = (data.charAt(7) == '1');
+
+ if (data.charAt(7) == '0') { // If alarm is turned off
+ isAlarmRinging = false;
+ analogWrite(BUZZER_PIN, 0);
+ }
+ }
+ }
+
+ // Display time in 24-hour format
+ int displayTime = hours * 100 + minutes;
+
+ // Blink colon for seconds
+ if (seconds != lastSecond) {
+ display.showNumberDecEx(displayTime, 0b01000000, true);
+ delay(100);
+ display.showNumberDecEx(displayTime, 0b00000000, true);
+ lastSecond = seconds;
+ }
+
+ // Check if alarm should ring
+ if (alarmActive && !isAlarmRinging &&
+11
+ hours == alarmHours &&
+ minutes == alarmMinutes &&
+ seconds == 0) {
+ isAlarmRinging = true;
+ } 
+ // Handle very soft alarm buzzer
+ if (isAlarmRinging) {
+ unsigned long currentTime = millis();
+ if (currentTime - lastBeepTime >= BUZZ_INTERVAL) {
+ softBeep();
+ lastBeepTime = currentTime;
+ }
+ }
+}
