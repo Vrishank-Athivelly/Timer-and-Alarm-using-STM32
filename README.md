@@ -1,1 +1,2 @@
 # Timer-and-Alarm-using-STM32
+This project focuses on the development of a versatile Timer and Alarm system using the STM32 microcontroller and the TM1637 7-segment display. The system is designed to accurately display real-time clock data, manage alarms, and function as a programmable timer with user-friendly features. The TM1637 display provides a clear and energy-efficient interface, while a buzzer generates soft auditory alerts for alarm notifications. 
